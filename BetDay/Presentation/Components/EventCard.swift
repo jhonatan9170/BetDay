@@ -6,16 +6,15 @@
 //
 
 import SwiftUI
-import SwiftData
 
 struct EventCard: View {
+    
     let event: BetEvent
     let isConfirmed: Bool
     let onBet: (BetSelection) -> Void
-
+    
     @State private var selectedBet: BetSelection? = nil
-    @Environment(\.modelContext) private var context
-
+    
     private var timeString: String {
         let f = DateFormatter()
         f.dateFormat = "HH:mm"

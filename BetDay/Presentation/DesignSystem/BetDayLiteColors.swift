@@ -22,7 +22,7 @@ enum BetColors {
  
  
 extension Color {
-    static let betBackground    = Color(hex: "#FFFFFF") //0D0F14
+    static let betBackground    = Color(hex: "#FFFFFF") 
     static let betSurface       = Color(hex: "#F5F6F8")
     static let betSurfaceAlt    = Color(hex: "#E9EAED")
     static let betAccent        = Color(hex: "#43A047")
