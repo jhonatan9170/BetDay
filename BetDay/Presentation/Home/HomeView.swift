@@ -82,8 +82,9 @@ struct HomeView: View {
                     EventCard(
                         event: event,
                         isConfirmed: vm.confirmedBet?.eventId == event.id
-                    ) { selection in
-                        Task { await vm.placeBet(on: event, selection: selection) }
+                    ) {  selection async -> Bool in
+                        await vm.placeBet(on: event, selection: selection)
+                        return vm.placeBetError == nil
                     }
                 }
             } header: {

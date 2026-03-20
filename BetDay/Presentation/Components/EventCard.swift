@@ -5,91 +5,141 @@
 //  Created by Jhonatan Chavez  on 19/03/26.
 //
 
+import Foundation
 import SwiftUI
 
-struct EventCard: View {
+struct EventCard: View, Equatable {
+    
+    static func == (lhs: EventCard, rhs: EventCard) -> Bool {
+        lhs.event.id == rhs.event.id &&
+        lhs.isConfirmed == rhs.isConfirmed
+    }
     
     let event: BetEvent
     let isConfirmed: Bool
-    let onBet: (BetSelection) -> Void
+    let onBet: (BetSelection) async -> Bool
     
     @State private var selectedBet: BetSelection? = nil
     
-    private var timeString: String {
+    private static let formatter: DateFormatter = {
         let f = DateFormatter()
         f.dateFormat = "HH:mm"
-        return f.string(from: event.kickoffDate)
+        return f
+    }()
+    
+    private var timeString: String {
+        Self.formatter.string(from: event.kickoffDate)
     }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            HStack(spacing: 6) {
-                Text(event.league.flag)
-                    .font(.caption)
-                Text(event.league.name)
-                    .font(.system(size: 11, weight: .semibold))
-                    .foregroundStyle(Color.betTextSecondary)
-                Spacer()
-                Text(timeString)
-                    .font(.system(size: 12, weight: .bold, design: .monospaced))
-                    .foregroundStyle(Color.betAccent)
-            }
-            HStack {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(event.homeTeam)
-                        .font(.system(size: 15, weight: .semibold))
-                        .foregroundStyle(Color.betTextPrimary)
-                    Text(event.awayTeam)
-                        .font(.system(size: 15, weight: .semibold))
-                        .foregroundStyle(Color.betTextPrimary)
-                }
-                Spacer()
-                HStack(spacing: 8) {
-                    OddsButton(label: "1", odds: event.odds.home, isSelected: selectedBet == .home) {
-                        placeOrToggle(.home)
-                    }
-                    OddsButton(label: "X", odds: event.odds.draw, isSelected: selectedBet == .draw) {
-                        placeOrToggle(.draw)
-                    }
-                    OddsButton(label: "2", odds: event.odds.away, isSelected: selectedBet == .away) {
-                        placeOrToggle(.away)
-                    }
-                }
-            }
-
+            
+            header
+            
+            content
+            
             if isConfirmed {
-                HStack(spacing: 4) {
-                    Image(systemName: "checkmark.seal.fill")
-                        .font(.caption2)
-                    Text("Bet added to your slip")
-                        .font(.system(size: 11, weight: .medium))
-                }
-                .foregroundStyle(Color.betAccent)
-                .transition(.opacity.combined(with: .scale))
+                confirmationView
             }
         }
         .padding(16)
-        .background(
-            RoundedRectangle(cornerRadius: 16, style: .continuous)
-                .fill(Color.betSurface)
-                .overlay(
-                    RoundedRectangle(cornerRadius: 16, style: .continuous)
-                        .strokeBorder(
-                            isConfirmed ? Color.betAccent.opacity(0.5) : Color.white.opacity(0.05),
-                            lineWidth: 1
-                        )
-                )
-        )
+        .background(backgroundView)
         .animation(.spring(duration: 0.3), value: isConfirmed)
     }
+}
 
-    private func placeOrToggle(_ sel: BetSelection) {
-        withAnimation(.spring(duration: 0.25)) {
-            if selectedBet == sel {
-                selectedBet = nil
-            } else {
-                selectedBet = sel
-                onBet(sel)
+// MARK: - Subviews (reduce trabajo en body)
+private extension EventCard {
+    
+    var header: some View {
+        HStack(spacing: 6) {
+            Text(event.league.flag)
+                .font(.caption)
+            
+            Text(event.league.name)
+                .font(.system(size: 11, weight: .semibold))
+                .foregroundStyle(Color.betTextSecondary)
+            
+            Spacer()
+            
+            Text(timeString)
+                .font(.system(size: 12, weight: .bold, design: .monospaced))
+                .foregroundStyle(Color.betAccent)
+        }
+    }
+    
+    var content: some View {
+        HStack {
+            VStack(alignment: .leading, spacing: 4) {
+                Text(event.homeTeam)
+                    .font(.system(size: 15, weight: .semibold))
+                    .foregroundStyle(Color.betTextPrimary)
+                
+                Text(event.awayTeam)
+                    .font(.system(size: 15, weight: .semibold))
+                    .foregroundStyle(Color.betTextPrimary)
+            }
+            
+            Spacer()
+            
+            HStack(spacing: 8) {
+                oddsButton("1", event.odds.home, .home)
+                oddsButton("X", event.odds.draw, .draw)
+                oddsButton("2", event.odds.away, .away)
+            }
+        }
+    }
+    
+    var confirmationView: some View {
+        HStack(spacing: 4) {
+            Image(systemName: "checkmark.seal.fill")
+                .font(.caption2)
+            
+            Text("Bet added to your slip")
+                .font(.system(size: 11, weight: .medium))
+        }
+        .foregroundStyle(Color.betAccent)
+        .transition(.opacity.combined(with: .scale))
+    }
+    
+    var backgroundView: some View {
+        RoundedRectangle(cornerRadius: 16, style: .continuous)
+            .fill(Color.betSurface)
+            .overlay(
+                RoundedRectangle(cornerRadius: 16, style: .continuous)
+                    .strokeBorder(
+                        isConfirmed
+                        ? Color.betAccent.opacity(0.5)
+                        : Color.white.opacity(0.05),
+                        lineWidth: 1
+                    )
+            )
+    }
+    
+    func oddsButton(_ label: String, _ odds: Double, _ selection: BetSelection) -> some View {
+        OddsButton(
+            label: label,
+            odds: odds,
+            isSelected: selectedBet == selection
+        ) {
+            placeOrToggle(selection)
+        }
+    }
+}
+
+private extension EventCard {
+    
+    func placeOrToggle(_ sel: BetSelection) {
+        Task {
+            let needSelect = await onBet(sel)
+            await MainActor.run {
+                withAnimation(.spring(response: 0.25, dampingFraction: 0.7)) {
+                    if needSelect {
+                        selectedBet = sel
+                    } else if selectedBet == sel {
+                        selectedBet = nil
+                    }
+                }
             }
         }
     }
@@ -124,7 +174,7 @@ struct EventCard: View {
     ScrollView {
         VStack(spacing: 12) {
             ForEach(events) { event in
-                EventCard(event: event, isConfirmed: event.id == "p2") { _ in }
+                EventCard(event: event, isConfirmed: event.id == "p2") { _ in Bool.random() }
             }
         }
         .padding()

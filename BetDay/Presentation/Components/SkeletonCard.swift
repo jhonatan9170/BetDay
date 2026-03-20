@@ -36,7 +36,7 @@ struct SkeletonCard: View {
         }
         .padding(16)
         .background(RoundedRectangle(cornerRadius: 16, style: .continuous).fill(Color.betSurface))
-        .onAppear { withAnimation(.easeInOut(duration: 1.2).repeatForever()) { shimmer.toggle() } }
+
     }
  
     private var shimmerGradient: LinearGradient {

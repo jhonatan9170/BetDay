@@ -63,17 +63,24 @@ extension LeagueResponse {
     }
     
     func countryFlag(for country: String) -> String {
-        let flags: [String: String] = [
-            "England":  "🏴󠁧󠁢󠁥󠁮󠁧󠁿",
-            "Spain":    "🇪🇸",
-            "Germany":  "🇩🇪",
-            "Italy":    "🇮🇹",
-            "France":   "🇫🇷",
-            "Portugal": "🇵🇹",
-            "Turkey":   "🇹🇷",
-            "Europe":   "🏆",
+        let specialCases: [String: String] = [
+            "England": "🏴󠁧󠁢󠁥󠁮󠁧󠁿",
+            "Europe": "🏆"
         ]
-        return flags[country] ?? "🌍"
+        if let flag = specialCases[country] {
+            return flag
+        }
+        
+        if let code = Locale.isoRegionCodes.first(where: {
+            Locale.current.localizedString(forRegionCode: $0)?.lowercased() == country.lowercased()
+        }) {
+            let base: UInt32 = 127397
+            let scalars = code.uppercased().unicodeScalars.compactMap {
+                UnicodeScalar(base + $0.value)
+            }
+            return String(String.UnicodeScalarView(scalars))
+        }
+        return "🌍"
     }
     
 }
